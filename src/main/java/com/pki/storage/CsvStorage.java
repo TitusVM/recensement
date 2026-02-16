@@ -94,6 +94,28 @@ public class CsvStorage {
     }
 
     /**
+     * Replace the first occurrence of {@code oldEntry} with {@code newEntry}.
+     * Returns {@code true} if the replacement was made.
+     */
+    public synchronized boolean replaceEntry(TimeEntry oldEntry, TimeEntry newEntry) throws IOException {
+        if (!Files.exists(dataFile)) return false;
+        try (FileChannel ch = FileChannel.open(dataFile,
+                StandardOpenOption.READ, StandardOpenOption.WRITE);
+             FileLock ignored = ch.lock()) {
+            String content = readChannel(ch);
+            List<TimeEntry> entries = parseEntries(content);
+            for (int i = 0; i < entries.size(); i++) {
+                if (entries.get(i).equals(oldEntry)) {
+                    entries.set(i, newEntry);
+                    writeChannel(ch, entries);
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
      * Replace all entries atomically. Used for bulk operations.
      */
     public synchronized void writeAll(List<TimeEntry> entries) throws IOException {

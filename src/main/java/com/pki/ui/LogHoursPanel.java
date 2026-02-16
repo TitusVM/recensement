@@ -133,9 +133,11 @@ public class LogHoursPanel extends JPanel {
 
         // ---- Bottom bar ----
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JButton editButton = new JButton("Edit Selected");
         JButton deleteButton = new JButton("Delete Selected");
         totalLabel = new JLabel("Total: 0.0h");
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD));
+        bottomPanel.add(editButton);
         bottomPanel.add(deleteButton);
         bottomPanel.add(Box.createHorizontalStrut(20));
         bottomPanel.add(totalLabel);
@@ -149,6 +151,9 @@ public class LogHoursPanel extends JPanel {
 
         // Add button
         addButton.addActionListener(e -> addEntry());
+
+        // Edit button
+        editButton.addActionListener(e -> editSelectedEntry());
 
         // Delete button
         deleteButton.addActionListener(e -> deleteSelectedEntry());
@@ -283,6 +288,152 @@ public class LogHoursPanel extends JPanel {
                     "Could not save entry:\n" + ex.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void editSelectedEntry() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select an entry to edit.",
+                    "No selection", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        TimeEntry original = tableModel.getEntryAt(selectedRow);
+
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this), "Edit Entry", true);
+        dialog.setLayout(new BorderLayout(8, 8));
+        dialog.setSize(480, 340);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        GridBagConstraints lbl = new GridBagConstraints();
+        lbl.anchor = GridBagConstraints.EAST;
+        lbl.insets = new Insets(4, 4, 4, 4);
+        GridBagConstraints fld = new GridBagConstraints();
+        fld.anchor = GridBagConstraints.WEST;
+        fld.fill = GridBagConstraints.HORIZONTAL;
+        fld.weightx = 1;
+        fld.insets = new Insets(4, 4, 4, 4);
+
+        int r = 0;
+
+        // Date
+        DatePickerField editDateField = new DatePickerField(original.getDate());
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Date:"), lbl);
+        form.add(editDateField, fld);
+        r++;
+
+        // Collaborator
+        JTextField editCollabField = new JTextField(original.getCollaborator(), 20);
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Collaborator:"), lbl);
+        form.add(editCollabField, fld);
+        r++;
+
+        // Sector
+        JComboBox<String> editSectorCombo = new JComboBox<>();
+        for (String s : config.getSectorNames()) editSectorCombo.addItem(s);
+        editSectorCombo.setSelectedItem(original.getSector());
+        if (editSectorCombo.getSelectedIndex() == -1) {
+            editSectorCombo.addItem(original.getSector());
+            editSectorCombo.setSelectedItem(original.getSector());
+        }
+        editSectorCombo.setEditable(true);
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Sector:"), lbl);
+        form.add(editSectorCombo, fld);
+        r++;
+
+        // Task
+        JComboBox<String> editTaskCombo = new JComboBox<>();
+        editTaskCombo.setEditable(true);
+        Runnable populateTasks = () -> {
+            String sec = (String) editSectorCombo.getSelectedItem();
+            editTaskCombo.removeAllItems();
+            if (sec != null) {
+                for (String t : config.getTasksForSector(sec)) editTaskCombo.addItem(t);
+            }
+        };
+        populateTasks.run();
+        editTaskCombo.setSelectedItem(original.getTask());
+        if (editTaskCombo.getSelectedIndex() == -1) {
+            editTaskCombo.addItem(original.getTask());
+            editTaskCombo.setSelectedItem(original.getTask());
+        }
+        editSectorCombo.addActionListener(ev -> {
+            String prev = (String) editTaskCombo.getSelectedItem();
+            populateTasks.run();
+            editTaskCombo.setSelectedItem(prev);
+        });
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Task:"), lbl);
+        form.add(editTaskCombo, fld);
+        r++;
+
+        // Hours
+        SpinnerNumberModel hModel = new SpinnerNumberModel(
+                original.getHours(), 0.25, 24.0, 0.25);
+        JSpinner editHoursSpinner = new JSpinner(hModel);
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Hours:"), lbl);
+        form.add(editHoursSpinner, fld);
+        r++;
+
+        // Description
+        JTextField editDescField = new JTextField(original.getDescription(), 20);
+        lbl.gridy = r; fld.gridy = r;
+        form.add(new JLabel("Description:"), lbl);
+        form.add(editDescField, fld);
+
+        dialog.add(form, BorderLayout.CENTER);
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
+        JButton saveBtn = new JButton("Save");
+        JButton cancelBtn = new JButton("Cancel");
+        saveBtn.setFont(saveBtn.getFont().deriveFont(Font.BOLD));
+        btnPanel.add(saveBtn);
+        btnPanel.add(cancelBtn);
+        dialog.add(btnPanel, BorderLayout.SOUTH);
+
+        cancelBtn.addActionListener(ev -> dialog.dispose());
+        saveBtn.addActionListener(ev -> {
+            try {
+                String collab = editCollabField.getText().trim();
+                String sector = (String) editSectorCombo.getSelectedItem();
+                String task = (String) editTaskCombo.getSelectedItem();
+                double hours = (Double) editHoursSpinner.getValue();
+                String desc = editDescField.getText().trim();
+                LocalDate date = editDateField.getDate();
+
+                if (collab.isEmpty() || sector == null || sector.isBlank()
+                        || task == null || task.isBlank()) {
+                    JOptionPane.showMessageDialog(dialog,
+                            "Collaborator, Sector, and Task are required.",
+                            "Validation", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                TimeEntry updated = new TimeEntry(date, collab, sector.trim(),
+                        task.trim(), hours, desc);
+                boolean replaced = storage.replaceEntry(original, updated);
+                if (!replaced) {
+                    JOptionPane.showMessageDialog(dialog,
+                            "Could not find the original entry (it may have been modified or deleted).",
+                            "Not found", JOptionPane.WARNING_MESSAGE);
+                }
+                dialog.dispose();
+                refreshTable();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog,
+                        "Could not save entry:\n" + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        dialog.getRootPane().setDefaultButton(saveBtn);
+        dialog.setVisible(true);
     }
 
     private void deleteSelectedEntry() {

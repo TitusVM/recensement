@@ -9,7 +9,7 @@ import java.util.Objects;
  */
 public class TimeEntry implements Comparable<TimeEntry> {
 
-    public static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
+    public static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final LocalDate date;
     private final String collaborator;
@@ -149,7 +149,7 @@ public class TimeEntry implements Comparable<TimeEntry> {
 
     @Override
     public String toString() {
-        String str = date + " | " + collaborator + " | " + sector + " > " + task + " | " + hours + "h";
+        String str = date.format(DATE_FMT) + " | " + collaborator + " | " + sector + " > " + task + " | " + hours + "h";
         if (!description.isEmpty()) str += " | " + description;
         return str;
     }

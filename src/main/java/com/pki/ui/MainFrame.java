@@ -20,7 +20,7 @@ public class MainFrame extends JFrame {
     public MainFrame(CsvStorage storage, AppConfig config) {
         super("Hours Tracker");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        setMinimumSize(new Dimension(850, 600));
+        setMinimumSize(new Dimension(1100, 650));
 
         logPanel = new LogHoursPanel(storage, config);
         entriesPanel = new EntriesPanel(storage, config);

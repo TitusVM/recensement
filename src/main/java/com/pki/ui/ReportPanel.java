@@ -12,140 +12,241 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Panel for generating reports with pie charts: hours by sector and by task.
+ * Panel for generating reports with pie charts.
+ * <p>
+ * Left column: Hours by Sector (date range + collaborator filter).
+ * Right column: Hours by Task within a sector (date range + collaborator + sector filter).
+ * Each chart has its own Refresh button.
  */
 public class ReportPanel extends JPanel {
 
     private final CsvStorage storage;
     private final AppConfig config;
 
-    private final DatePickerField fromDateField;
-    private final DatePickerField toDateField;
-    private final JComboBox<String> collaboratorCombo;
+    // Left chart filters
+    private final DatePickerField sectorFromDate;
+    private final DatePickerField sectorToDate;
+    private final JComboBox<String> sectorCollabCombo;
     private final PieChartComponent sectorChart;
+
+    // Right chart filters
+    private final DatePickerField taskFromDate;
+    private final DatePickerField taskToDate;
+    private final JComboBox<String> taskCollabCombo;
+    private final JComboBox<String> taskSectorCombo;
     private final PieChartComponent taskChart;
+
     private final JLabel summaryLabel;
 
     public ReportPanel(CsvStorage storage, AppConfig config) {
         this.storage = storage;
         this.config = config;
 
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        // ---- Filter bar ----
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
-        filterPanel.setBorder(BorderFactory.createTitledBorder("Report Filters"));
+        setLayout(new BorderLayout(8, 8));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         LocalDate now = LocalDate.now();
-        fromDateField = new DatePickerField(now.withDayOfMonth(1));
-        toDateField = new DatePickerField(now);
-        collaboratorCombo = new JComboBox<>(new String[]{"All"});
 
-        filterPanel.add(new JLabel("From:"));
-        filterPanel.add(fromDateField);
-        filterPanel.add(new JLabel("To:"));
-        filterPanel.add(toDateField);
-        filterPanel.add(new JLabel("Collaborator:"));
-        filterPanel.add(collaboratorCombo);
+        // =============== LEFT COLUMN: Hours by Sector ===============
+        JPanel leftPanel = new JPanel(new BorderLayout(4, 4));
+        leftPanel.setBorder(BorderFactory.createTitledBorder("Hours by Sector"));
 
-        JButton generateButton = new JButton("Generate Report");
-        generateButton.setFont(generateButton.getFont().deriveFont(Font.BOLD));
-        filterPanel.add(generateButton);
+        JPanel leftFilters = new JPanel();
+        leftFilters.setLayout(new BoxLayout(leftFilters, BoxLayout.Y_AXIS));
 
-        add(filterPanel, BorderLayout.NORTH);
+        // Date row
+        JPanel leftDateRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        sectorFromDate = new DatePickerField(now.withDayOfMonth(1));
+        sectorToDate = new DatePickerField(now);
+        leftDateRow.add(new JLabel("From:"));
+        leftDateRow.add(sectorFromDate);
+        leftDateRow.add(new JLabel("To:"));
+        leftDateRow.add(sectorToDate);
 
-        // ---- Charts ----
-        JPanel chartsPanel = new JPanel(new GridLayout(1, 2, 15, 0));
+        // Collaborator + Refresh row
+        JPanel leftCollabRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        sectorCollabCombo = new JComboBox<>(new String[]{"All"});
+        JButton refreshSectorBtn = new JButton("Refresh");
+        refreshSectorBtn.setFont(refreshSectorBtn.getFont().deriveFont(Font.BOLD));
+        leftCollabRow.add(new JLabel("Collaborator:"));
+        leftCollabRow.add(sectorCollabCombo);
+        leftCollabRow.add(refreshSectorBtn);
+
+        leftFilters.add(leftDateRow);
+        leftFilters.add(leftCollabRow);
+        leftPanel.add(leftFilters, BorderLayout.NORTH);
+
         sectorChart = new PieChartComponent();
-        sectorChart.setTitle("Hours by Sector");
+        leftPanel.add(sectorChart, BorderLayout.CENTER);
+
+        // =============== RIGHT COLUMN: Hours by Task ===============
+        JPanel rightPanel = new JPanel(new BorderLayout(4, 4));
+        rightPanel.setBorder(BorderFactory.createTitledBorder("Hours by Task"));
+
+        JPanel rightFilters = new JPanel();
+        rightFilters.setLayout(new BoxLayout(rightFilters, BoxLayout.Y_AXIS));
+
+        // Date row
+        JPanel rightDateRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        taskFromDate = new DatePickerField(now.withDayOfMonth(1));
+        taskToDate = new DatePickerField(now);
+        rightDateRow.add(new JLabel("From:"));
+        rightDateRow.add(taskFromDate);
+        rightDateRow.add(new JLabel("To:"));
+        rightDateRow.add(taskToDate);
+
+        // Collaborator + Sector + Refresh row
+        JPanel rightFilterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        taskCollabCombo = new JComboBox<>(new String[]{"All"});
+        taskSectorCombo = new JComboBox<>(new String[]{"All"});
+        JButton refreshTaskBtn = new JButton("Refresh");
+        refreshTaskBtn.setFont(refreshTaskBtn.getFont().deriveFont(Font.BOLD));
+        rightFilterRow.add(new JLabel("Collaborator:"));
+        rightFilterRow.add(taskCollabCombo);
+        rightFilterRow.add(new JLabel("Sector:"));
+        rightFilterRow.add(taskSectorCombo);
+        rightFilterRow.add(refreshTaskBtn);
+
+        rightFilters.add(rightDateRow);
+        rightFilters.add(rightFilterRow);
+        rightPanel.add(rightFilters, BorderLayout.NORTH);
+
         taskChart = new PieChartComponent();
-        taskChart.setTitle("Hours by Task");
-        chartsPanel.add(sectorChart);
-        chartsPanel.add(taskChart);
+        rightPanel.add(taskChart, BorderLayout.CENTER);
+
+        // =============== Layout ===============
+        JPanel chartsPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        chartsPanel.add(leftPanel);
+        chartsPanel.add(rightPanel);
         add(chartsPanel, BorderLayout.CENTER);
 
         // ---- Summary ----
-        summaryLabel = new JLabel("Click 'Generate Report' to see charts.");
-        summaryLabel.setFont(summaryLabel.getFont().deriveFont(Font.ITALIC, 12f));
-        summaryLabel.setBorder(BorderFactory.createEmptyBorder(8, 5, 5, 5));
+        summaryLabel = new JLabel("Click 'Refresh' on either chart to generate a report.");
+        summaryLabel.setFont(summaryLabel.getFont().deriveFont(Font.ITALIC, 11f));
+        summaryLabel.setBorder(BorderFactory.createEmptyBorder(6, 4, 4, 4));
         add(summaryLabel, BorderLayout.SOUTH);
 
         // ---- Wiring ----
-        generateButton.addActionListener(e -> generateReport());
+        refreshSectorBtn.addActionListener(e -> generateSectorChart());
+        refreshTaskBtn.addActionListener(e -> generateTaskChart());
     }
 
     /**
-     * Reload the collaborator dropdown and regenerate charts.
+     * Reload the collaborator and sector dropdowns from current data.
      */
     public void refreshData() {
         try {
             List<TimeEntry> all = storage.readAll();
+
+            // Collaborators
             Set<String> collaborators = all.stream()
                     .map(TimeEntry::getCollaborator)
                     .collect(Collectors.toCollection(TreeSet::new));
-            String prev = (String) collaboratorCombo.getSelectedItem();
-            collaboratorCombo.removeAllItems();
-            collaboratorCombo.addItem("All");
-            collaborators.forEach(collaboratorCombo::addItem);
-            if (prev != null) collaboratorCombo.setSelectedItem(prev);
-        } catch (Exception ex) {
-            // Silently ignore on refresh; errors will show when generating
+            refreshCombo(sectorCollabCombo, collaborators, "All");
+            refreshCombo(taskCollabCombo, collaborators, "All");
+
+            // Sectors
+            Set<String> sectors = all.stream()
+                    .map(TimeEntry::getSector)
+                    .collect(Collectors.toCollection(TreeSet::new));
+            refreshCombo(taskSectorCombo, sectors, "All");
+        } catch (Exception ignored) {
         }
     }
 
-    private void generateReport() {
+    private void refreshCombo(JComboBox<String> combo, Set<String> values, String defaultItem) {
+        String prev = (String) combo.getSelectedItem();
+        combo.removeAllItems();
+        combo.addItem(defaultItem);
+        values.forEach(combo::addItem);
+        if (prev != null) combo.setSelectedItem(prev);
+    }
+
+    // ---- Left chart: Hours by Sector ----
+
+    private void generateSectorChart() {
         try {
-            List<TimeEntry> all = storage.readAll();
-
-            // Apply filters
-            LocalDate from = fromDateField.getDate();
-            LocalDate to = toDateField.getDate();
-            String collabFilter = (String) collaboratorCombo.getSelectedItem();
-
-            List<TimeEntry> filtered = all.stream()
-                    .filter(e -> !e.getDate().isBefore(from) && !e.getDate().isAfter(to))
-                    .filter(e -> "All".equals(collabFilter)
-                            || e.getCollaborator().equalsIgnoreCase(collabFilter))
-                    .toList();
+            List<TimeEntry> filtered = loadFiltered(
+                    sectorFromDate.getDate(), sectorToDate.getDate(),
+                    (String) sectorCollabCombo.getSelectedItem(), null);
 
             if (filtered.isEmpty()) {
                 sectorChart.setData(Collections.emptyMap());
-                taskChart.setData(Collections.emptyMap());
-                summaryLabel.setText("No entries found for the selected filters.");
+                updateSummary(filtered, sectorFromDate.getDate(), sectorToDate.getDate());
                 return;
             }
 
-            // Hours by Sector
             Map<String, Double> bySector = new LinkedHashMap<>();
             for (TimeEntry e : filtered) {
                 bySector.merge(e.getSector(), e.getHours(), Double::sum);
             }
             sectorChart.setData(bySector);
+            updateSummary(filtered, sectorFromDate.getDate(), sectorToDate.getDate());
+        } catch (Exception ex) {
+            showError("Could not generate sector chart", ex);
+        }
+    }
 
-            // Hours by Task (Sector > Task)
+    // ---- Right chart: Hours by Task ----
+
+    private void generateTaskChart() {
+        try {
+            String sectorFilter = (String) taskSectorCombo.getSelectedItem();
+            List<TimeEntry> filtered = loadFiltered(
+                    taskFromDate.getDate(), taskToDate.getDate(),
+                    (String) taskCollabCombo.getSelectedItem(),
+                    "All".equals(sectorFilter) ? null : sectorFilter);
+
+            if (filtered.isEmpty()) {
+                taskChart.setData(Collections.emptyMap());
+                summaryLabel.setText("No entries found for the selected task filters.");
+                return;
+            }
+
             Map<String, Double> byTask = new LinkedHashMap<>();
             for (TimeEntry e : filtered) {
-                String key = e.getSector() + " > " + e.getTask();
-                byTask.merge(key, e.getHours(), Double::sum);
+                byTask.merge(e.getTask(), e.getHours(), Double::sum);
             }
             taskChart.setData(byTask);
-
-            // Summary
-            double totalHours = filtered.stream().mapToDouble(TimeEntry::getHours).sum();
-            long uniqueDays = filtered.stream().map(TimeEntry::getDate).distinct().count();
-            long uniqueCollaborators = filtered.stream()
-                    .map(e -> e.getCollaborator().toLowerCase())
-                    .distinct().count();
-            summaryLabel.setText(String.format(
-                    "Period: %s to %s  |  Entries: %d  |  Total hours: %.1f  |  "
-                            + "Working days: %d  |  Collaborators: %d",
-                    from, to, filtered.size(), totalHours, uniqueDays, uniqueCollaborators));
-
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Could not generate report:\n" + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            showError("Could not generate task chart", ex);
         }
+    }
+
+    // ---- Helpers ----
+
+    private List<TimeEntry> loadFiltered(LocalDate from, LocalDate to,
+                                         String collabFilter, String sectorFilter) throws Exception {
+        List<TimeEntry> all = storage.readAll();
+        return all.stream()
+                .filter(e -> !e.getDate().isBefore(from) && !e.getDate().isAfter(to))
+                .filter(e -> collabFilter == null || "All".equals(collabFilter)
+                        || e.getCollaborator().equalsIgnoreCase(collabFilter))
+                .filter(e -> sectorFilter == null
+                        || e.getSector().equalsIgnoreCase(sectorFilter))
+                .toList();
+    }
+
+    private void updateSummary(List<TimeEntry> entries, LocalDate from, LocalDate to) {
+        if (entries.isEmpty()) {
+            summaryLabel.setText("No entries found for the selected filters.");
+            return;
+        }
+        double totalHours = entries.stream().mapToDouble(TimeEntry::getHours).sum();
+        long uniqueDays = entries.stream().map(TimeEntry::getDate).distinct().count();
+        long uniqueCollaborators = entries.stream()
+                .map(e -> e.getCollaborator().toLowerCase()).distinct().count();
+        summaryLabel.setText(String.format(
+                "Period: %s to %s  |  Entries: %d  |  Total hours: %.1f  |  "
+                        + "Working days: %d  |  Collaborators: %d",
+                from.format(com.pki.model.TimeEntry.DATE_FMT),
+                to.format(com.pki.model.TimeEntry.DATE_FMT),
+                entries.size(), totalHours, uniqueDays, uniqueCollaborators));
+    }
+
+    private void showError(String message, Exception ex) {
+        JOptionPane.showMessageDialog(this,
+                message + ":\n" + ex.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
     }
 }

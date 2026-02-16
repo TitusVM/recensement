@@ -18,28 +18,54 @@ import java.util.Locale;
 public class DatePickerField extends JPanel {
 
     private final JTextField textField;
-    private final JButton button;
+    private final JButton prevDayBtn;
+    private final JButton nextDayBtn;
+    private final JButton calendarBtn;
     private JPopupMenu popup;
     private LocalDate selectedDate;
 
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     public DatePickerField(LocalDate initialDate) {
         super(new BorderLayout(0, 0));
         this.selectedDate = initialDate != null ? initialDate : LocalDate.now();
 
+        // ◀ button (previous day)
+        prevDayBtn = new JButton("\u25C0");
+        prevDayBtn.setMargin(new Insets(1, 3, 1, 3));
+        prevDayBtn.setFocusable(false);
+        prevDayBtn.setToolTipText("Previous day");
+
         textField = new JTextField(selectedDate.format(FMT), 10);
-        textField.setToolTipText("yyyy-MM-dd — or click the calendar button");
-        button = new JButton("\u25BC"); // ▼
-        button.setMargin(new Insets(1, 4, 1, 4));
-        button.setFocusable(false);
-        button.setToolTipText("Open calendar");
+        textField.setToolTipText("dd.MM.yyyy — use \u25C0 \u25B6 or arrow keys to step by day");
 
+        // ▶ button (next day)
+        nextDayBtn = new JButton("\u25B6");
+        nextDayBtn.setMargin(new Insets(1, 3, 1, 3));
+        nextDayBtn.setFocusable(false);
+        nextDayBtn.setToolTipText("Next day");
+
+        // ▼ calendar button
+        calendarBtn = new JButton("\u25BC");
+        calendarBtn.setMargin(new Insets(1, 4, 1, 4));
+        calendarBtn.setFocusable(false);
+        calendarBtn.setToolTipText("Open calendar");
+
+        // Layout: [◀] [text field] [▶] [▼]
+        JPanel rightButtons = new JPanel(new GridLayout(1, 2, 0, 0));
+        rightButtons.add(nextDayBtn);
+        rightButtons.add(calendarBtn);
+
+        add(prevDayBtn, BorderLayout.WEST);
         add(textField, BorderLayout.CENTER);
-        add(button, BorderLayout.EAST);
+        add(rightButtons, BorderLayout.EAST);
 
-        // Open popup on button click
-        button.addActionListener(e -> togglePopup());
+        // Arrow buttons
+        prevDayBtn.addActionListener(e -> stepDay(-1));
+        nextDayBtn.addActionListener(e -> stepDay(1));
+
+        // Open popup on calendar button click
+        calendarBtn.addActionListener(e -> togglePopup());
 
         // Parse date on Enter / focus lost
         textField.addActionListener(e -> parseTextField());
@@ -47,6 +73,20 @@ public class DatePickerField extends JPanel {
             @Override
             public void focusLost(FocusEvent e) {
                 parseTextField();
+            }
+        });
+
+        // Keyboard arrow keys: LEFT = previous day, RIGHT = next day
+        textField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_LEFT && e.isAltDown()) {
+                    stepDay(-1);
+                    e.consume();
+                } else if (e.getKeyCode() == KeyEvent.VK_RIGHT && e.isAltDown()) {
+                    stepDay(1);
+                    e.consume();
+                }
             }
         });
     }
@@ -81,10 +121,19 @@ public class DatePickerField extends JPanel {
     public void setEnabled(boolean enabled) {
         super.setEnabled(enabled);
         textField.setEnabled(enabled);
-        button.setEnabled(enabled);
+        prevDayBtn.setEnabled(enabled);
+        nextDayBtn.setEnabled(enabled);
+        calendarBtn.setEnabled(enabled);
     }
 
     // ---- Internal ----
+
+    private void stepDay(int days) {
+        parseTextField(); // sync first
+        selectedDate = selectedDate.plusDays(days);
+        textField.setText(selectedDate.format(FMT));
+        fireDateChanged();
+    }
 
     private void parseTextField() {
         try {

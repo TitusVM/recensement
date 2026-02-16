@@ -32,7 +32,7 @@ On first launch, the application creates two files in the working directory:
 
 ### 1. Log Hours (Tab 1)
 1. Enter your **name** (remembered automatically for next time).
-2. Pick the **date** (defaults to today, format: `yyyy-MM-dd`).
+2. Pick the **date** (defaults to today, format: `dd.MM.yyyy`).
 3. Select the **Sector** and **Task** from the dropdowns.
 4. Enter **hours** (0.25 increments, e.g., 0.5, 1, 2.5).
 5. Click **Add Entry**. The entry is saved to `hours.csv` immediately.
@@ -106,9 +106,9 @@ For a team sharing the same data file:
 `hours.csv`:
 ```csv
 date;collaborator;sector;task;hours;description
-2026-02-11;Alice;Development;Backend;4.0;API refactoring
-2026-02-11;Alice;Administration;Meetings;2.0;
-2026-02-11;Bob;Testing;Unit Tests;6.5;Coverage improvements
+11.02.2026;Alice;Development;Backend;4.0;API refactoring
+11.02.2026;Alice;Administration;Meetings;2.0;
+11.02.2026;Bob;Testing;Unit Tests;6.5;Coverage improvements
 ```
 
 ---

@@ -62,7 +62,7 @@ public class EntryTableModel extends AbstractTableModel {
     public Object getValueAt(int row, int col) {
         TimeEntry e = entries.get(row);
         return switch (col) {
-            case 0 -> e.getDate().toString();
+            case 0 -> e.getDate().format(com.pki.model.TimeEntry.DATE_FMT);
             case 1 -> e.getCollaborator();
             case 2 -> e.getSector();
             case 3 -> e.getTask();
